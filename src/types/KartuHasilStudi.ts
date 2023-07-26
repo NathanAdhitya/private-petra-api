@@ -13,8 +13,18 @@ export type JenisNilai = string;
 export interface PeriodeKHS {
   semester: Semester;
   tahun: number;
+  parameters?: KHSParameters;
 
   mataKuliah: KHSMataKuliah[];
+}
+
+export interface KHSParameters {
+  semester: string;
+  tahun: string | number;
+  no: string;
+  nim: string;
+  psem: `${string}${string}`;
+  key: string;
 }
 
 export interface KHSMataKuliah {
@@ -37,7 +47,7 @@ export interface HasilAsesmenMataKuliah {
 
 export interface CapaianPembelajaranMataKuliah {
   no: number;
-  cpmk: number;
+  cpmk: string;
   rumusan: string;
   cpl: string;
   bobot: Bobot;

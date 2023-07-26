@@ -1,6 +1,10 @@
 import { SIMSession } from "../../SIMSession.js";
 import {
+  CapaianPembelajaranLulus,
+  CapaianPembelajaranMataKuliah,
+  HasilAsesmenMataKuliah,
   KHSMataKuliah,
+  KHSParameters,
   PeriodeKHS,
   Semester,
 } from "../../types/KartuHasilStudi.js";
@@ -22,7 +26,7 @@ export class KHS {
     // Get all listed years in the dropdown
     const semesterOptions = semesterSelect?.querySelectorAll("option");
     const semesterValues = [...(semesterOptions ?? [])].map((option) => [
-      option.getAttribute("value"),
+      option.getAttribute("value") as string,
       option.text,
     ]);
 
@@ -32,7 +36,7 @@ export class KHS {
     );
 
     const yearValues = [...(yearSelect?.querySelectorAll("option") ?? [])].map(
-      (option) => [option.getAttribute("value"), option.text]
+      (option) => [option.getAttribute("value") as string, option.text]
     );
 
     // Get inputs: no, nim, psem, key
@@ -51,28 +55,35 @@ export class KHS {
 
     // Construct the base FormData contianing the hidden inputs
     const formData = new FormData();
-    formData.append("no", noInput?.getAttribute("value") ?? "");
-    formData.append("nim", nimInput?.getAttribute("value") ?? "");
-    formData.append("key", keyInput?.getAttribute("value") ?? "");
+    const baseParameters: Omit<KHSParameters, "psem" | "semester" | "tahun"> = {
+      no: noInput?.getAttribute("value") ?? "",
+      nim: nimInput?.getAttribute("value") ?? "",
+      key: keyInput?.getAttribute("value") ?? "",
+    };
+
+    // Append baseParameters to formData
+    for (const [key, value] of Object.entries(baseParameters)) {
+      formData.append(key, value);
+    }
 
     // Construct formData for each possible year and semester combination
     const combinationFormData: FormData[] = [];
 
     for (const [semesterValue, semesterText] of semesterValues) {
       for (const [yearValue, yearText] of yearValues) {
-        // Clone the existing formData
+        // Clone the existing formData params
         const newFormData = new FormData();
+        const newParameters: KHSParameters = {
+          ...baseParameters,
+          semester: semesterValue,
+          tahun: yearValue,
+          psem: `${yearValue}${semesterValue}`,
+        };
 
-        for (const [key, value] of formData.entries()) {
+        // Append newParameters to newFormData
+        for (const [key, value] of Object.entries(newParameters)) {
           newFormData.append(key, value);
         }
-
-        // Append the new semester and year
-        newFormData.append("semester", semesterValue as string);
-        newFormData.append("tahun", yearValue as string);
-
-        // psem is the combination of year and semester
-        newFormData.append("psem", `${yearValue}${semesterValue}`);
 
         combinationFormData.push(newFormData);
       }
@@ -94,13 +105,47 @@ export class KHS {
 
     // Parse all the combinations
     const combinations = await Promise.all(
-      combinationResponses.map(
-        async (result) =>
-          [
-            await this.parsePeriod(new JSDOM(await result[0].text())),
-            result[1],
-          ] as const
-      )
+      combinationResponses.map(async (result) => {
+        const textResult = await result[0].text();
+        return [
+          await this.parsePeriod(new JSDOM(textResult)).catch(async (e) => {
+            console.error(e);
+
+            // Convert formData to object
+            const formDataObject: Record<string, string> = {};
+            for (const [key, value] of result[1]) {
+              formDataObject[key] = value as string;
+            }
+
+            // Error data string should contain the error message, context, and parameters
+            const errorData = `${e.message}\n${e.stack}\n${JSON.stringify(
+              formDataObject
+            )}`;
+
+            // ErrorID should be date and time + random 3 digits
+            const errorID = `${new Date()
+              .toISOString()
+              .replaceAll(":", "-")}-${Math.floor(Math.random() * 1000)
+              .toString()
+              .padStart(3, "0")}`;
+
+            // Write a file in directory error_dump
+            const fs = await import("fs");
+            fs.writeFile(
+              `error_dump/${errorID}.html`,
+              errorData + "\n" + textResult,
+              (err) => {
+                if (err) {
+                  console.error(err);
+                }
+              }
+            );
+
+            return [];
+          }),
+          result[1],
+        ] as const;
+      })
     );
 
     // Filter out invalid combinations
@@ -116,9 +161,222 @@ export class KHS {
       ) ?? ["???", "???"])[1] as unknown as Semester,
       tahun: Number.parseInt(combination[1].get("tahun") as string),
       mataKuliah: combination[0],
+      parameters: {
+        semester: combination[1].get("semester") as string,
+        tahun: combination[1].get("tahun") as string,
+        no: combination[1].get("no") as string,
+        nim: combination[1].get("nim") as string,
+        psem: combination[1].get("psem") as string,
+        key: "",
+      },
     }));
 
     return result;
+  }
+
+  async getMKDetail(params: KHSParameters) {
+    const endpoint = "index.php?page=view_khsdetailobe";
+    const formData = new FormData();
+
+    formData.append("semester", params.semester);
+    formData.append("tahun", params.tahun.toString());
+    formData.append("no", params.no.toString());
+    formData.append("nim", params.nim);
+    formData.append("psem", params.psem);
+    formData.append("key", params.key);
+
+    const response = await this.session.fetch(endpoint, {
+      method: "POST",
+      body: formData,
+    });
+
+    const dom = new JSDOM(await response.text());
+    const hasilAsesmen = await this.parseHasilAsesmen(dom);
+    const cpmk = await this.parseCPMK(dom);
+    const cpl = await this.parseCPL(dom);
+
+    return {
+      hasilAsesmen,
+      cpmk,
+      cpl,
+    };
+  }
+
+  async parseHasilAsesmen(
+    dom: JSDOM
+  ): Promise<HasilAsesmenMataKuliah[] | null> {
+    /*
+      Table format is:
+      No | Jenis Nilai | Bobot | Nilai
+
+      Table tag is:
+      <table width="700" cellpadding="4" cellspacing="0" class="GridStyle">
+    */
+
+    const result: HasilAsesmenMataKuliah[] = [];
+
+    const table = dom.window.document.querySelectorAll(
+      `table.GridStyle[width="700"][cellpadding="4"][cellspacing="0"]`
+    );
+
+    // Find the table which first td in first tr starts with "ASESMEN"
+    const hasilAsesmenTable = [...table.values()].find((table) =>
+      table
+        .querySelector("tr")
+        ?.querySelector("td")
+        ?.textContent?.trim()
+        .startsWith("ASESMEN")
+    );
+
+    if (!hasilAsesmenTable) return null;
+
+    const rows = hasilAsesmenTable.querySelectorAll("tr");
+    let rowsSkipped = 0;
+
+    for (const row of rows) {
+      // First two rows are junk, skip them.
+      if (rowsSkipped < 2) {
+        rowsSkipped++;
+        continue;
+      }
+
+      const cells = [...row.querySelectorAll("td").values()];
+      // If the last cell is empty, means that there is no data.
+      if (!cells[3].textContent?.trim()) break;
+
+      const no = Number.parseInt(cells[0].textContent ?? "");
+      const jenisNilai = cells[1].textContent?.trim() ?? "";
+      const bobot = Number.parseFloat(
+        cells[2].textContent?.trim().replaceAll("%", "") ?? ""
+      );
+      const nilai = Number.parseFloat(cells[3].textContent?.trim() ?? "");
+
+      result.push({
+        no,
+        jenisNilai,
+        bobot,
+        nilai,
+      });
+    }
+
+    return result.length > 0 ? result : null;
+  }
+
+  async parseCPMK(dom: JSDOM): Promise<CapaianPembelajaranMataKuliah[] | null> {
+    /*
+      Table format is:
+      No | CPMK<br>Rumusan | CPL | Bobot | Nilai
+
+      Table tag is:
+      <table width="700" cellpadding="4" cellspacing="0" class="GridStyle">
+    */
+
+    const result: CapaianPembelajaranMataKuliah[] = [];
+
+    const table = dom.window.document.querySelectorAll(
+      `table.GridStyle[width="700"][cellpadding="4"][cellspacing="0"]`
+    );
+
+    // Find the table which first td in first tr starts with "Capaian Pembelajaran Mata Kuliah"
+    const cpmkTable = [...table.values()].find((table) =>
+      table
+        .querySelector("tr")
+        ?.querySelector("td")
+        ?.textContent?.trim()
+        .startsWith("Capaian Pembelajaran Mata Kuliah")
+    );
+
+    if (!cpmkTable) return null;
+
+    const rows = cpmkTable.querySelectorAll("tr");
+    let rowsSkipped = 0;
+
+    for (const row of rows) {
+      // First two rows are junk, skip them.
+      if (rowsSkipped < 2) {
+        rowsSkipped++;
+        continue;
+      }
+
+      const cells = [...row.querySelectorAll("td").values()];
+      const no = Number.parseInt(cells[0].textContent ?? "");
+      // CPMK, get before <br>
+      const cpmk =
+        cells[1].querySelector("br")?.previousSibling?.textContent?.trim() ??
+        "";
+      // Rumusan, get after <br>
+      const rumusan =
+        cells[1].querySelector("br")?.nextSibling?.textContent?.trim() ?? "";
+      const cpl = cells[2].textContent?.trim() ?? "";
+      const bobot = Number.parseFloat(
+        cells[3].textContent?.trim().replaceAll("%", "") ?? ""
+      );
+      const nilai = Number.parseFloat(cells[4].textContent?.trim() ?? "");
+
+      result.push({
+        no,
+        cpmk,
+        rumusan,
+        cpl,
+        bobot,
+        nilai,
+      });
+    }
+
+    return result.length > 0 ? result : null;
+  }
+
+  async parseCPL(dom: JSDOM): Promise<CapaianPembelajaranLulus[] | null> {
+    /*
+      Table format is:
+      Kode | Indikator | Bobot | Nilai
+
+      Table tag is:
+      <table width="550" cellpadding="4" cellspacing="0" class="GridStyle">
+    */
+
+    const result: CapaianPembelajaranLulus[] = [];
+
+    const table = dom.window.document.querySelectorAll(
+      `table.GridStyle[width="550"][cellpadding="4"][cellspacing="0"]`
+    );
+
+    // Find the table which first td in first tr is "Capaian Pembelajaran Lulus"
+    const cplTable = [...table.values()].find(
+      (table) =>
+        table.querySelector("tr")?.querySelector("td")?.textContent?.trim() ===
+        "Capaian Pembelajaran Lulus"
+    );
+
+    if (!cplTable) return null;
+
+    const rows = cplTable.querySelectorAll("tr");
+    let rowsSkipped = 0;
+
+    for (const row of rows) {
+      // First two rows are junk, skip them.
+      if (rowsSkipped < 2) {
+        rowsSkipped++;
+        continue;
+      }
+
+      const cells = [...row.querySelectorAll("td").values()];
+      const kode = cells[0].textContent?.trim() ?? "";
+      const indikator = cells[1].textContent?.trim() ?? "";
+      const bobot = Number.parseFloat(
+        cells[2].textContent?.trim().replaceAll("%", "") ?? ""
+      );
+      const nilai = Number.parseFloat(cells[3].textContent?.trim() ?? "");
+
+      result.push({
+        kode,
+        indikator,
+        bobot,
+        nilai,
+      });
+    }
+
+    return result.length > 0 ? result : null;
   }
 
   async parsePeriod(dom: JSDOM): Promise<KHSMataKuliah[]> {

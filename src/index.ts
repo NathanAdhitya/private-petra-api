@@ -4,6 +4,7 @@ import "dotenv/config";
 import { SIMSession } from "./SIMSession.js";
 import { KHS } from "./modules/khs/KHS.js";
 import { generatePerwalian1 } from "./cli/Perwalian1.js";
+import { generateCSVJadwalKuliah } from "./cli/CSVJadwalKuliah.js";
 
 console.log("Logging in...");
 console.log("Username:", process.env.SIM_USERNAME);
@@ -15,5 +16,5 @@ console.log("Username:", process.env.SIM_USERNAME);
     "@john.petra.ac.id"
   );
 
-  generatePerwalian1(session);
+  generateCSVJadwalKuliah(session);
 })();

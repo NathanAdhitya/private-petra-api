@@ -361,6 +361,7 @@ export class KHS {
       }
 
       const cells = [...row.querySelectorAll("td").values()];
+      if (cells.length < 4) break;
       const kode = cells[0].textContent?.trim() ?? "";
       const indikator = cells[1].textContent?.trim() ?? "";
       const bobot = Number.parseFloat(

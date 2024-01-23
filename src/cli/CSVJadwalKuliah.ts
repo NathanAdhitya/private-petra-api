@@ -16,7 +16,14 @@ export async function generateCSVJadwalKuliah(session: SIMSession) {
 
   const currentJadwalCSV = currentJadwalData.entries.map((entry) => {
     // Ensure to escape ,
-    const escapeComma = (str: string) => str.replace(/,/g, "\\,");
+    const escapeComma = (str: string) => {
+      const result = str.replace(/,/g, "\\,");
+      // If different, then add quotes
+      if (result !== str) {
+        return `"${result}"`;
+      }
+      return result;
+    };
     return `${entry.hari},${entry.jam},${entry.lama},${
       entry.ruang
     },${escapeComma(entry.mataKuliah)},${escapeComma(

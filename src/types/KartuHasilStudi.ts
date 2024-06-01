@@ -11,52 +11,52 @@ export type PersenKehadiran = number;
 export type JenisNilai = string;
 
 export interface PeriodeKHS {
-  semester: Semester;
-  tahun: number;
-  parameters?: KHSParameters;
+    semester: Semester;
+    tahun: number;
+    parameters?: KHSParameters;
 
-  mataKuliah: KHSMataKuliah[];
+    mataKuliah: KHSMataKuliah[];
 }
 
 export interface KHSParameters {
-  semester: string;
-  tahun: string | number;
-  no: string;
-  nim: string;
-  psem: `${string}${string}`;
-  key: string;
+    semester: string;
+    tahun: string | number;
+    no: string;
+    nim: string;
+    psem: `${string}${string}`;
+    key: string;
 }
 
 export interface KHSMataKuliah {
-  no: number;
-  kodeMK: KodeMK;
-  namaMK: NamaMK;
-  sks: SKS;
-  nilai: NilaiHuruf;
-  persenKehadiran: PersenKehadiran;
+    no: number;
+    kodeMK: KodeMK;
+    namaMK: NamaMK;
+    sks: SKS;
+    nilai: NilaiHuruf;
+    persenKehadiran: PersenKehadiran;
 
-  detailId: string;
+    detailId: string;
 }
 
 export interface HasilAsesmenMataKuliah {
-  no: number;
-  jenisNilai: JenisNilai;
-  bobot: Bobot;
-  nilai: Nilai;
+    no: number;
+    jenisNilai: JenisNilai;
+    bobot: Bobot;
+    nilai: Nilai;
 }
 
 export interface CapaianPembelajaranMataKuliah {
-  no: number;
-  cpmk: string;
-  rumusan: string;
-  cpl: string;
-  bobot: Bobot;
-  nilai: Nilai;
+    no: number;
+    cpmk: string;
+    rumusan: string;
+    cpl: string;
+    bobot: Bobot;
+    nilai: Nilai;
 }
 
 export interface CapaianPembelajaranLulus {
-  kode: string;
-  indikator: string;
-  bobot: Bobot;
-  nilai: Nilai;
+    kode: string;
+    indikator: string;
+    bobot: Bobot;
+    nilai: Nilai;
 }

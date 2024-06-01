@@ -1,4 +1,4 @@
-import { LoginDomain } from "./types/SIMLogin.js";
+import type { LoginDomain } from "./types/SIMLogin.js";
 
 export class SIMSession {
     PHPSESSID: string;

@@ -1,5 +1,3 @@
-export interface DataMahasiswa {}
-
 export type JenisKelaminMahasiswa = "L" | "P";
 
 export interface BiodataPerkuliahanMahasiswa {

@@ -116,20 +116,6 @@ export class JadwalKuliahGlobal {
             }
         }
 
-        // Save it to a file for dev
-        function replacer(key: string, value: any) {
-            if (value instanceof Map) {
-                return Array.from(value.entries());
-            } else {
-                return value;
-            }
-        }
-
-        await Bun.write(
-            Bun.file("output/jadwal.json"),
-            JSON.stringify([...results], replacer, 2)
-        );
-
         return results;
     }
 

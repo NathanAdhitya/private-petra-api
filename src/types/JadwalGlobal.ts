@@ -1,9 +1,11 @@
+export type MataKuliah = string;
+
 export interface JadwalGlobal {
     periode: string;
     unit: string;
 
     jadwal: Map<
-        string,
+        MataKuliah,
         {
             kuliah: EntryJadwalKuliahGlobal[];
             uts: EntryJadwalUjianGlobal[];

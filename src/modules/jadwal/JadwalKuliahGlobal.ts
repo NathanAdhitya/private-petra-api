@@ -12,13 +12,13 @@ export class JadwalKuliahGlobal {
 
     async getAllJadwalKuliah() {
         // Fetch default jadwalutsjurusan to get all possible units
-        // const defaultJadwalUts = await this.fetchJadwalUnit(
-        //     "view_jadwalutsjurusan"
-        // );
-        const defaultJadwalJurusan = await this.fetchJadwalUnit(
-            "view_jadwaljurusan"
+        const defaultJadwalUts = await this.fetchJadwalUnit(
+            "view_jadwalutsjurusan"
         );
-        const defaultJsdom = new JSDOM(await defaultJadwalJurusan.text());
+        // const defaultJadwalJurusan = await this.fetchJadwalUnit(
+        //     "view_jadwaljurusan"
+        // );
+        const defaultJsdom = new JSDOM(await defaultJadwalUts.text());
         const units = await this.extractUnits(defaultJsdom);
         const periode = await this.extractPeriode(defaultJsdom);
 
@@ -95,6 +95,7 @@ export class JadwalKuliahGlobal {
                 results.set(unitName, {
                     periode: periode,
                     unit: unitName,
+                    kodeUnit: unit.value,
                     jadwal: mergedJadwal,
                 });
             } else {

@@ -3,6 +3,7 @@ export type MataKuliah = string;
 export interface JadwalGlobal {
     periode: string;
     unit: string;
+    kodeUnit: string;
 
     jadwal: Map<
         MataKuliah,

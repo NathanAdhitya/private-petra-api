@@ -1,4 +1,30 @@
+import "dotenv/config";
 import jadwal from "../../output/jadwal.json";
+import { SIMSession } from "../SIMSession.js";
+import process from "process";
+import { PRSService } from "../modules/prs/PRSService.js";
+
+// Print parameters
+let period = process.argv.slice(2)[0] ?? "";
+if (period.length === 0) {
+    console.warn(
+        "Period is not provided as parameter, assuming 2024S2. Calculate this with the format {YEAR}S{SEMESTER 1/2}"
+    );
+    period = "2024S2";
+}
+
+console.log("Logging in...");
+console.log("Username:", process.env["SIM_USERNAME"]);
+
+const session = await SIMSession.login(
+    process.env["SIM_USERNAME"]!,
+    process.env["SIM_PASSWORD"]!,
+    "@john.petra.ac.id"
+);
+
+console.log("Logged in.");
+
+const prsService = new PRSService(session);
 
 export function guessMatkulSks(durationMinutes: number[]) {
     // Guess the SKS of a matkul based on the duration of its classes
@@ -85,70 +111,100 @@ const hariToDayOfWeek = {
 
 const newJadwal: MataKuliah[] = [];
 
-Object.values(jadwal).forEach((unit) => {
-    // ignore any unit which name contains "(*)"
-    if (unit.unit.includes("(*)")) return;
+await Promise.all(
+    Object.values(jadwal).map(async (unit) => {
+        // ignore any unit which name contains "(*)"
+        if (unit.unit.includes("(*)")) return;
 
-    // ignore any unit with name "magister"
-    if (unit.unit.toLowerCase().includes("magister")) return;
+        // ignore any unit with name "magister"
+        if (unit.unit.toLowerCase().includes("magister")) return;
 
-    // ignore any unit with empty jadwal
-    if (Object.keys(unit.jadwal).length === 0) return;
+        // ignore any unit with empty jadwal
+        if (Object.keys(unit.jadwal).length === 0) return;
 
-    const unitPrefix = guessUnitPrefix(unit.unit);
+        // get class data for the unit
+        const matkulList = await prsService.getMatkulList(period, unit.kodeUnit);
+        const matkulMap = new Map<string, (typeof matkulList)[number]>(); // key: nama mk all lowercase without whitespace
 
-    Object.entries(unit.jadwal).forEach(([namaMatkul, matkul]) => {
-        const sks = guessMatkulSks(
-            matkul.kuliah.map((kelas) => kelas.lengthMinutes ?? 0)
-        );
-
-        const kode = `${unitPrefix}${unitPrefixes
-            .get(unitPrefix)
-            ?.toString()
-            .padStart(3, "0")}`;
-
-        // increment unit prefix counter
-        unitPrefixes.set(unitPrefix, (unitPrefixes.get(unitPrefix) ?? 1) + 1);
-
-        const newMatkul: MataKuliah = {
-            nama: namaMatkul,
-            sks,
-            unit: unit.unit,
-            kode,
-            kelas: [],
-        };
-
-        matkul.kuliah.forEach((kelas) => {
-            // skip if jam mulai is null
-            if (kelas.jamMulai === null) return;
-
-            // skip if ruang is /
-            if (kelas.ruang === "/") return;
-
-            // find kelas or append new kelas
-            const findKelas = newMatkul.kelas.find(
-                (k) => k.kelas === kelas.kelas
-            );
-            const newKelas = findKelas ?? {
-                kelas: kelas.kelas,
-                jadwal: [] as JadwalMataKuliah[],
-            };
-
-            // append jadwal
-            newKelas.jadwal.push({
-                dayOfWeek:
-                    hariToDayOfWeek[kelas.hari as keyof typeof hariToDayOfWeek],
-                startHour: kelas.jamMulai,
-                startMinute: kelas.menitMulai,
-                durasi: kelas.lengthMinutes ?? 0,
-                ruang: kelas.ruang,
-            });
-
-            if (!findKelas) newMatkul.kelas.push(newKelas);
+        matkulList.forEach((matkul) => {
+            const key = matkul.namaMK.toLowerCase().replace(/\s/g, "");
+            matkulMap.set(key, matkul);
         });
 
-        newJadwal.push(newMatkul);
-    });
-});
+        const unitPrefix = guessUnitPrefix(unit.unit);
+
+        Object.entries(unit.jadwal).forEach(([namaMatkul, matkul]) => {
+            const matkulKey = namaMatkul.toLowerCase().replace(/\s/g, "");
+            const prsMatkul = matkulMap.get(matkulKey);
+
+            let sks = guessMatkulSks(
+                matkul.kuliah.map((kelas) => kelas.lengthMinutes ?? 0)
+            );
+
+            let kode = `${unitPrefix}${unitPrefixes
+                .get(unitPrefix)
+                ?.toString()
+                .padStart(3, "0")}`;
+
+            if(!prsMatkul){
+                console.warn(`${namaMatkul} not found in PRS entry. SKS and Kode MK will be guessed. Kode unit: ${unit.kodeUnit}, key: ${matkulKey}`);
+            } else {
+                sks = prsMatkul.sks;
+                kode = prsMatkul.kodeMK;
+            }
+            
+            // increment unit prefix counter
+            unitPrefixes.set(
+                unitPrefix,
+                (unitPrefixes.get(unitPrefix) ?? 1) + 1
+            );
+
+            // Remove double spaces in namaMatkul
+            const cleanedNamaMatkul = namaMatkul.replaceAll("  ", " ");
+
+            const newMatkul: MataKuliah = {
+                nama: cleanedNamaMatkul,
+                sks,
+                unit: unit.unit,
+                kode,
+                kelas: [],
+            };
+
+            matkul.kuliah.forEach((kelas) => {
+                // skip if jam mulai is null
+                if (kelas.jamMulai === null) return;
+
+                // skip if ruang is /
+                if (kelas.ruang === "/") return;
+
+                // find kelas or append new kelas
+                const findKelas = newMatkul.kelas.find(
+                    (k) => k.kelas === kelas.kelas
+                );
+                const newKelas = findKelas ?? {
+                    kelas: kelas.kelas,
+                    jadwal: [] as JadwalMataKuliah[],
+                };
+
+                // append jadwal
+                newKelas.jadwal.push({
+                    dayOfWeek:
+                        hariToDayOfWeek[
+                            kelas.hari as keyof typeof hariToDayOfWeek
+                        ],
+                    startHour: kelas.jamMulai,
+                    startMinute: kelas.menitMulai,
+                    durasi: kelas.lengthMinutes ?? 0,
+                    ruang: kelas.ruang,
+                });
+
+                if (!findKelas) newMatkul.kelas.push(newKelas);
+            });
+
+            newJadwal.push(newMatkul);
+        });
+    })
+);
+
 // write newJadwal to newJadwal.json
 Bun.write("output/newJadwal.json", JSON.stringify(newJadwal, null, 2));

@@ -206,5 +206,8 @@ await Promise.all(
     })
 );
 
+// Sort the array by "nama" field for consistency
+newJadwal.sort((a, b) => a.nama.localeCompare(b.nama));
+
 // write newJadwal to newJadwal.json
 Bun.write("output/newJadwal.json", JSON.stringify(newJadwal, null, 2));

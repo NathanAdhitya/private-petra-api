@@ -29,7 +29,7 @@ export class PRSService {
          * <option value="2024:TF4229:15:1">02 - TF4229 - BASIS DATA - 3 sks</option>
          * 
          * Value Labels: Year:KodeMK:Unit:Period
-         * Text Labels: number (ignore) - KodeMK (ignore) - NamaMK - ... sks
+         * Text Labels: semester - KodeMK (ignore) - NamaMK - ... sks
          */
 
         const r = await this.session
@@ -67,6 +67,7 @@ export class PRSService {
                 unit: splittedValue[2],
                 period: splittedValue[3],
                 namaMK: splittedText[splittedText.length - 2],
+                semester: parseInt(splittedText[0], 10),
                 sks: parseInt(splittedText[splittedText.length - 1].split(" ")[0], 10),
             };
         });

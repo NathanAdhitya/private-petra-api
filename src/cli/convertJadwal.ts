@@ -69,6 +69,7 @@ function guessUnitPrefix(namaUnit: string) {
 
 export interface MataKuliah {
     nama: string;
+    semester: number | null;
     sks: number;
     unit: string;
     kode: string;
@@ -146,11 +147,14 @@ await Promise.all(
                 ?.toString()
                 .padStart(3, "0")}`;
 
+            let semester: null | number = null;
+
             if(!prsMatkul){
                 console.warn(`${namaMatkul} not found in PRS entry. SKS and Kode MK will be guessed. Kode unit: ${unit.kodeUnit}, key: ${matkulKey}`);
             } else {
                 sks = prsMatkul.sks;
                 kode = prsMatkul.kodeMK;
+                semester = prsMatkul.semester;
             }
             
             // increment unit prefix counter
@@ -164,6 +168,7 @@ await Promise.all(
 
             const newMatkul: MataKuliah = {
                 nama: cleanedNamaMatkul,
+                semester,
                 sks,
                 unit: unit.unit,
                 kode,

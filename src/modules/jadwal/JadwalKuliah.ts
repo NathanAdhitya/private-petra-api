@@ -41,7 +41,7 @@ interface JadwalUjianParsedResponse extends BaseJadwalParsedResponse {
     date: Date;
 }
 
-const dayIndex = {
+export const dayIndex = {
     Senin: 1,
     Selasa: 2,
     Rabu: 3,

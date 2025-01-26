@@ -1,3 +1,9 @@
+/**
+ * Older version of convertJadwal
+ * This relies on schedule data as the source of truth.
+ * If a matkul is not found in PRS, SKS and Kode MK will be guessed.
+ */
+
 import "dotenv/config";
 import jadwal from "../../output/jadwal.json";
 import { SIMSession } from "../SIMSession.js";

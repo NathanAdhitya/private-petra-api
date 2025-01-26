@@ -387,7 +387,7 @@ export class JadwalKuliahGlobal {
         const br = mataKuliah.querySelector("br");
         if (!br) {
             return {
-                mataKuliah: mataKuliah.textContent ?? "",
+                mataKuliah: (mataKuliah.textContent ?? "").replaceAll("  ", " ").replaceAll(" amp ", " & "),
                 catatan: undefined,
             };
         }
@@ -397,8 +397,8 @@ export class JadwalKuliahGlobal {
         const catatanText = mataKuliah.childNodes[2].textContent ?? "";
 
         return {
-            mataKuliah: mataKuliahText,
-            catatan: catatanText,
+            mataKuliah: mataKuliahText.replaceAll("  ", " "),
+            catatan: catatanText.replaceAll("  ", " "),
         };
     }
 }

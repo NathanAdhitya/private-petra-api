@@ -69,3 +69,19 @@ export async function generatePerwalian1(session: SIMSession) {
         "Kode,Mata Kuliah,SKS,Nilai\n" + mkDetailsCSV.join("\n")
     );
 }
+
+import "dotenv/config";
+
+// Create SIMLogin then print PHPSESSID
+console.log("Logging in...");
+console.log("Username:", process.env["SIM_USERNAME"]);
+
+const session = await SIMSession.login(
+    process.env["SIM_USERNAME"]!,
+    process.env["SIM_PASSWORD"]!,
+    "@john.petra.ac.id"
+);
+
+console.log("Logged in.");
+await generatePerwalian1(session);
+

@@ -251,6 +251,7 @@ export class KHS {
             }
 
             const cells = [...row.querySelectorAll("td").values()];
+            if (cells.length < 4) break;
             // If the last cell is empty, means that there is no data.
             if (!cells[3].textContent?.trim()) break;
 

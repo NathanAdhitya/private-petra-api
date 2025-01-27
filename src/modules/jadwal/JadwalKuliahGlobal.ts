@@ -95,7 +95,7 @@ export class JadwalKuliahGlobal {
                 results.set(unitName, {
                     periode: periode,
                     unit: unitName,
-                    kodeUnit: unit.value,
+                    kodeUnit: [unit.value],
                     jadwal: mergedJadwal,
                 });
             } else {
@@ -103,6 +103,8 @@ export class JadwalKuliahGlobal {
                 if (!existingJadwal) {
                     throw new Error("Existing jadwal not found");
                 }
+
+                existingJadwal.kodeUnit.push(unit.value);
 
                 mergedJadwal.forEach((value, key) => {
                     if (existingJadwal.jadwal.has(key)) {

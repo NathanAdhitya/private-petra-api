@@ -103,10 +103,12 @@ await Promise.all(
         if (Object.keys(unit.jadwal).length === 0) return;
 
         // get class data for the unit
-        const matkulList = await prsService.getMatkulList(
-            period,
-            unit.kodeUnit
-        );
+        const matkulList = (await Promise.all(unit.kodeUnit.map(v => 
+            prsService.getMatkulList(
+                period,
+                v
+            )
+        ))).flat();
 
         await Promise.all(
             matkulList.map(async (matkul) => {

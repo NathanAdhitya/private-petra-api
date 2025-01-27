@@ -278,6 +278,10 @@ Umum<br><strong>N1 :</strong> Umum<br><strong>YA :</strong> PROGRAM INTERNASIONA
                 if (cleanedEntry.trim().length === 0) return null;
 
                 const [kelas, desc] = cleanedEntry.split(" : ");
+
+                if (!kelas || !desc) 
+                    throw Error("Failed to parse keterangan kelas for " + cleanedEntry);
+
                 return {
                     kelas: kelas.trim(),
                     desc: desc.trim(),

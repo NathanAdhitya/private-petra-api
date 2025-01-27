@@ -473,7 +473,8 @@ await Promise.all(
     })
 );
 
-// Sort the array by "nama" field for consistency
+// Sort the array by "unit" then "nama" field for consistency
+newJadwal.sort((a, b) => a.unit.localeCompare(b.unit));
 newJadwal.sort((a, b) => a.nama.localeCompare(b.nama));
 
 // write newJadwal to newJadwal.json
